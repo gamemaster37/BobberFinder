@@ -9,7 +9,7 @@ import glob
 
 # Define the threshold for template matching
 threshold = 0.7
-movemet_threshold = 20
+movemet_threshold = 16
 conditioning_time = 22  # 22 seconds
 
 # Global Variables
@@ -42,12 +42,13 @@ window_x, window_y, window_width, window_height = (
     program_window.height,
 )
 
+
 def reset():
     global previous_frame, found, start_time
     delay_time = random.uniform(0.15, 0.2)
-    time.sleep(2*delay_time)
-    #fish action on button 1
-    keyboard.press_and_release('1')
+    time.sleep(2 * delay_time)
+    # fish action on button 1
+    keyboard.press_and_release("1")
     previous_frame = None
     found = False
     start_time = time.time()
@@ -68,7 +69,9 @@ def bobber_finder(gray_frame):
                     top_left[1] + template.shape[0],
                 )
                 found = True
-                top_left_g, bottom_right_g = top_left, bottom_right
+                top_left_g, bottom_right_g = expand_crop_area(
+                    top_left, bottom_right, 0.1
+                )
 
     return top_left_g, bottom_right_g
 
@@ -84,24 +87,43 @@ def detect_movement(current_frame):
 
     movement_pixels = cv2.countNonZero(frame_diff_thresholded)
     movement_percentage = (movement_pixels / (frame_diff_thresholded.size + 1)) * 100
+    print(movement_percentage)
 
-    return movement_percentage > movemet_threshold
+    return movement_percentage >= movemet_threshold
+
+
+def expand_crop_area(top_left, bottom_right, expansion_percentage):
+    # Calculate the dimensions of the current crop area
+    width = bottom_right[0] - top_left[0]
+    height = bottom_right[1] - top_left[1]
+
+    # Calculate the expansion amounts for width and height
+    expand_width = int(width * expansion_percentage)
+    expand_height = int(height * expansion_percentage)
+
+    # Expand the crop area by the calculated amounts
+    expanded_top_left = (top_left[0] - expand_width, top_left[1] - expand_height)
+    expanded_bottom_right = (
+        bottom_right[0] + expand_width,
+        bottom_right[1] + expand_height,
+    )
+
+    return expanded_top_left, expanded_bottom_right
 
 
 def bobber_moves(gray_frame, top_left, bottom_right):
     global found
     if found:
-        # Define the region of interest within the rectangle
+        # Define the region of interest within the expanded rectangle
         roi_frame = gray_frame[
             top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]
         ]
-        time.sleep(0.01)
+        # time.sleep(0.01)
         if detect_movement(roi_frame):
-            #cv2.imwrite("rectangle_capture"+""+".png", roi_frame) save capture
+            # cv2.imwrite("rectangle_capture" + "" + ".png", roi_frame) save capture
             return True
 
     return False
-
 
 
 while True:
@@ -118,7 +140,7 @@ while True:
 
     if bobber_moves(gray_frame, top_left, bottom_right):
         print(f">>> Fish Found")
-        keyboard.press_and_release('f')
+        keyboard.press_and_release("f")
         reset()
 
     # Visual debugger
